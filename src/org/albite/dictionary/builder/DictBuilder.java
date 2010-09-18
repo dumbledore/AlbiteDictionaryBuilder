@@ -161,7 +161,8 @@ public class DictBuilder {
                 System.out.println("Dictionary language: "
                         + dictionaryLanguage);
 
-                for (int i = 0; i < eDict.getChildCount(); i++) {
+                final int childCount = eDict.getChildCount();
+                for (int i = 0; i < childCount; i++) {
 
                     /*
                      * <entry>
@@ -186,7 +187,7 @@ public class DictBuilder {
                                         break;
                                     }
                                 }
-                                
+
                                 if (index == -1) {
                                     /*
                                      * word not in the dictionary; add it only,
@@ -220,6 +221,7 @@ public class DictBuilder {
                             }
                         }
                     }
+                    System.out.println(i + "/" + childCount);
                 }
             } finally {
                 f.close();
@@ -231,7 +233,9 @@ public class DictBuilder {
        /*
         * Sort the entries by word
         */
+        System.out.print("Sorting the index...");
         Collections.sort(dictionary);
+        System.out.println("done");
 
         /*
          * Prepare output filename
