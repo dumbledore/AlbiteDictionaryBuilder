@@ -5,7 +5,9 @@
 
 package org.albite.dictionary.builder;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,6 +21,10 @@ import org.kxml2.io.*;
 import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.File;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
 
 /**
  *
@@ -45,7 +51,7 @@ public class DictBuilder {
 
         if (!dictFile.exists() || !dictFile.isFile()) {
             throw new DictBuilderException(
-                    "Dictionary file <" + dictFileName + "> does not exists!");
+                    "Dictionary file " + dictFileName + " does not exists!");
         }
 
         //get list of words, if such is available
@@ -57,8 +63,8 @@ public class DictBuilder {
             wordsFile = new File(wordsFileName);
 
             if (!wordsFile.exists() || !wordsFile.isFile()) {
-                throw new DictBuilderException("Wordlist file <"
-                        + wordsFileName + "> does not exists!");
+                throw new DictBuilderException("Wordlist file "
+                        + wordsFileName + " does not exists!");
             }
         }
 
@@ -69,7 +75,7 @@ public class DictBuilder {
         if (wordsFile != null) {
             //fill words in dictionary from list
             System.out.println(
-                    "Processing words list <" + wordsFile.getName() + ">");
+                    "Processing words list: " + wordsFile.getName() + "...");
             try {
                 InputStream in = new FileInputStream(wordsFile);
                 try {
@@ -120,7 +126,7 @@ public class DictBuilder {
                 }
 
                 System.out.println(
-                        "Processing dictionary <" + dictFile.getName() + ">");
+                        "Processing dictionary: " + dictFile.getName() + "...");
 
                 /*
                  * Root element looks like so
@@ -233,7 +239,7 @@ public class DictBuilder {
         String fileOutName = dictFile.getPath().substring(0,
                 dictFile.getPath().lastIndexOf('.')) + FILE_EXTENSION;
 
-        System.out.println("Writing file <" + fileOutName + ">...");
+        System.out.println("Writing file: " + fileOutName + "...");
 
         RandomAccessFile out;
 
@@ -255,6 +261,9 @@ public class DictBuilder {
                   * to seek back to it at the end
                   */
                  final int headerEnd = (int) out.getFilePointer();
+                 if (debug) {
+                     System.out.println("Header ends at: " + headerEnd);
+                 }
 
                  /*
                   * Write dummy value that will be rewritten later.
@@ -285,6 +294,9 @@ public class DictBuilder {
                   * It shows where the word index starts.
                   */
                  final int wordIndexPosition = (int) out.getFilePointer();
+                 if (debug) {
+                     System.out.println("Word index at: " + wordIndexPosition);
+                 }
 
                  /*
                   * write a dummy number, which will be
@@ -312,7 +324,7 @@ public class DictBuilder {
                          if (debug) {
                              System.out.println("Writing word: " + e.word);
                          }
-                         
+
                          wordsActuallyWritten++;
                      }
                  }
@@ -325,9 +337,15 @@ public class DictBuilder {
                  /*
                   * write the amount of bytes to be skipped so that
                   * the pointer would be exactly at the beginning of
-                  * the word index
+                  * the word index. Note that one must substract four,
+                  * as one skips AFTER reading the integer
                   */
-                 out.writeInt(wordIndexPosition - headerEnd);
+                 final int skip = wordIndexPosition - headerEnd - 4;
+                 out.writeInt(skip);
+                 if (debug) {
+                     System.out.println(
+                             "Skip value: " + (skip));
+                 }
 
                  /*
                   * Seek to the place, where we'll write the number of words
@@ -361,5 +379,73 @@ public class DictBuilder {
         }
 
         return null;
+    }
+
+
+    /**
+     * Test the dictionary, through reading all the entries.
+     * @param file
+     * @throws IOException
+     * @throws DictBuilderException
+     */
+    public static void test(final String fileName)
+            throws IOException, DictBuilderException {
+
+        final File file = new File(fileName);
+
+        System.out.println("Testing dictionary: " + file.getName() + "...");
+
+        DataInputStream in
+                = new DataInputStream(
+                new BufferedInputStream(new FileInputStream(file)));
+
+        in.mark(Integer.MAX_VALUE);
+
+        if (in.readInt() != DictBuilder.MAGIC_NUMBER) {
+            throw new DictBuilderException("Magic number is wrong");
+        }
+
+        String title = in.readUTF();
+        System.out.println("Title: " + title);
+
+        int language = in.readShort();
+        System.out.println("Language: " + language);
+
+        int skip = in.readInt();
+        System.out.println("Skipping " + skip);
+        int skipped = (int) in.skipBytes(skip);
+        System.out.println("Skipped " + skipped);
+
+        final int wordsCount = in.readInt();
+        System.out.println("words count: " + wordsCount);
+        Map<String, Integer> entries = new HashMap<String, Integer>(wordsCount);
+
+        for (int i = 0; i < wordsCount; i++) {
+            System.out.print("Reading entry #" + (i + 1));
+
+            String word = in.readUTF();
+            System.out.print(", " + word);
+
+            int position = in.readInt();
+            System.out.println(", " + position);
+
+            entries.put(word, position);
+        }
+
+        Set words = entries.keySet();
+        Iterator it = words.iterator();
+
+        while (it.hasNext()) {
+            String word = (String) it.next();
+            int position = entries.get(word).intValue();
+            in.reset();
+            in.skip(position);
+            String definition = in.readUTF();
+
+            System.out.println(
+                    "Word: " + word + ", (" + definition.length() + ")");
+        }
+
+        System.out.println("Dictionary tested successfully.");
     }
 }

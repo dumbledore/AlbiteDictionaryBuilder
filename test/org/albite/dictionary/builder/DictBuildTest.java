@@ -5,6 +5,7 @@
 
 package org.albite.dictionary.builder;
 
+import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -48,18 +49,23 @@ public class DictBuildTest extends TestCase {
         assertTrue(e3.compareTo(e1) > 0);
     }
 
-    public void testDictBuildWithoutWordlist() throws DictBuilderException {
+    public void testDictBuildWithoutWordlist()
+            throws DictBuilderException, IOException {
+
         System.out.println("TEST: Dictionary without a wordlist");
         System.out.println("-----------------------------------");
 
         final String dictFileName = "./test/res/original/wb1913-test-1.xml";
-//        DictBuilder.build(dictFileName, null, true);
-        
+        String f = DictBuilder.build(dictFileName, null, true);
+
+        DictBuilder.test(f);
 
         System.out.println();
     }
 
-    public void testDictBuild() throws DictBuilderException, IOException {
+    public void testDictBuild()
+            throws DictBuilderException, IOException {
+
         System.out.println("TEST: Dictionary filtered WITH a wordlist");
         System.out.println("-----------------------------------------");
 
@@ -67,55 +73,8 @@ public class DictBuildTest extends TestCase {
         final String wordsFileName = "./test/res/original/3esl.txt";
         String f = DictBuilder.build(dictFileName, wordsFileName, true);
 
-        readDictionary(new File(f));
+        DictBuilder.test(f);
 
         System.out.println();
-    }
-
-    private void readDictionary(final File file)
-            throws IOException, DictBuilderException {
-
-        System.out.println("reading file <" + file.getName() + ">...");
-
-        DataInputStream in
-                = new DataInputStream(new FileInputStream(file));
-
-        in.mark(Integer.MAX_VALUE);
-
-        if (in.readInt() != DictBuilder.MAGIC_NUMBER) {
-            throw new DictBuilderException("Magic number is wrong");
-        }
-
-        String title = in.readUTF();
-        System.out.println("Title: " + title);
-
-        int language = in.readShort();
-        System.out.println("Language: " + language);
-
-        in.skip(in.readInt());
-
-        final int wordsCount = in.readInt();
-        Map<String, Integer> entries = new HashMap<String, Integer>(wordsCount);
-
-        for (int i = 0; i < wordsCount; i++) {
-            System.out.println("Reading entry #" + i);
-            String entry = in.readUTF();
-            int position = in.readInt();
-            entries.put(entry, position);
-        }
-
-        Set words = entries.keySet();
-        Iterator it = words.iterator();
-
-        while (it.hasNext()) {
-            String word = (String) it.next();
-            int position = entries.get(word).intValue();
-            in.reset();
-            in.skip(position);
-            String definition = in.readUTF();
-
-            System.out.println(
-                    "Word: " + word + ", (" + definition.length() + ")");
-        }
     }
 }

@@ -18,6 +18,10 @@ public class Main {
      * Converts a dictionary.xml to dictionary.ald or
      * dictionary.xml + wordlist.txt to dictionary.ald
      *
+     * OR
+     *
+     * Test a builded dictionary.ald for errors
+     *
      * @param args the command line arguments
      */
     public static void main(String[] args) {
@@ -27,19 +31,34 @@ public class Main {
             return;
         }
 
-        String dictFileName = args[0];
-        String wordsFileName = null;
+        if (args[0].endsWith(DictBuilder.FILE_EXTENSION)) {
+            /* Testing the dict */
+            final String dictFileName = args[0];
+            try {
+                DictBuilder.test(dictFileName);
+            } catch (Exception e) {
+                System.out.println("Dictionary test failed.");
+                System.out.println(e.getMessage());
+                throw new RuntimeException("Dictionary test failed.");
+            }
+        } else {
 
-        if (args.length > 1) {
-            wordsFileName = args[1];
-        }
+            final String dictFileName = args[0];
+            final String wordsFileName;
 
-        try {
-            DictBuilder.build(dictFileName, wordsFileName, false);
-        } catch (DictBuilderException e) {
-            System.out.println("Dictionary build failed.");
-            System.out.println(e.getMessage());
-            throw new RuntimeException("Dictionary build failed.");
+            if (args.length > 1) {
+                wordsFileName = args[1];
+            } else {
+                wordsFileName = null;
+            }
+
+            try {
+                DictBuilder.build(dictFileName, wordsFileName, false);
+            } catch (DictBuilderException e) {
+                System.out.println("Dictionary build failed.");
+                System.out.println(e.getMessage());
+                throw new RuntimeException("Dictionary build failed.");
+            }
         }
     }
 
@@ -52,5 +71,10 @@ public class Main {
         System.out.println("- wordlist.txt is used if you'd like to include only some words");
         System.out.println();
         System.out.println("Note that both files must be in UTF-8. See the readme for more info.");
+        System.out.println();
+        System.out.println("One can test a builded dictionary for errors, too:");
+        System.out.println("AlbDict.jar dictionary.ald");
+        System.out.println();
+        System.out.println("A built dictionary is distinguished by the app by its extension: .ald");
     }
 }
