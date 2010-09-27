@@ -341,11 +341,12 @@ public class DictBuilder {
                  /*
                   * write the amount of bytes to be skipped so that
                   * the pointer would be exactly at the beginning of
-                  * the word index. Note that one must substract four,
-                  * as one skips AFTER reading the integer
+                  * the word index. This is an absolute value from the start
+                  * of the file.
                   */
-                 final int skip = wordIndexPosition - headerEnd - 4;
+                 final int skip = wordIndexPosition;
                  out.writeInt(skip);
+
                  if (debug) {
                      System.out.println(
                              "Skip value: " + (skip));
@@ -415,7 +416,13 @@ public class DictBuilder {
         int language = in.readShort();
         System.out.println("Language: " + language);
 
+        /*
+         * Skip value from the BEGINNING!
+         */
         int skip = in.readInt();
+
+        in.reset();
+
         System.out.println("Skipping " + skip);
         int skipped = (int) in.skipBytes(skip);
         System.out.println("Skipped " + skipped);
