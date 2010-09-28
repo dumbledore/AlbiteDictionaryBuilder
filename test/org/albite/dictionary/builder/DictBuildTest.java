@@ -22,6 +22,8 @@ import junit.framework.TestCase;
  */
 public class DictBuildTest extends TestCase {
 
+    private static final String folder = "./test/res/original/";
+
     public void testDictEntry() {
         final String w1 = "flabbergasted";
         final DictEntry e1 = new DictEntry(w1);
@@ -49,28 +51,29 @@ public class DictBuildTest extends TestCase {
         assertTrue(e3.compareTo(e1) > 0);
     }
 
-    public void testDictBuildWithoutWordlist()
-            throws DictBuilderException, IOException {
+    public void testDicts()
+        throws DictBuilderException, IOException {
 
-        System.out.println("TEST: Dictionary without a wordlist");
-        System.out.println("-----------------------------------");
+        testDict("beg.xml", false);
+        testDict("beg-filtered.xml", true);
 
-        final String dictFileName = "./test/res/original/wb1913-test-1.xml";
-        String f = DictBuilder.build(dictFileName, null, true);
+        testDict("mid.xml", false);
+        testDict("mid-filtered.xml", true);
 
-        DictBuilder.test(f);
-
-        System.out.println();
+        testDict("end.xml", false);
+        testDict("end-filtered.xml", true);
     }
 
-    public void testDictBuild()
+    private void testDict(
+            final String fileName, final boolean filtered)
             throws DictBuilderException, IOException {
 
-        System.out.println("TEST: Dictionary filtered WITH a wordlist");
+        final String dictFileName = folder + fileName;
+        final String wordsFileName = (filtered ? folder + "3esl.txt" : null);
+
+        System.out.println("TEST: " + fileName);
         System.out.println("-----------------------------------------");
 
-        final String dictFileName = "./test/res/original/wb1913-test-2.xml";
-        final String wordsFileName = "./test/res/original/3esl.txt";
         String f = DictBuilder.build(dictFileName, wordsFileName, true);
 
         DictBuilder.test(f);
