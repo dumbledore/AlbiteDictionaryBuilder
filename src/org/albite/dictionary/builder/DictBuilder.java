@@ -84,7 +84,8 @@ public class DictBuilder {
                     String word;
                     int i = 0;
                     while ( (word = bufin.readLine()) != null) {
-                        dictionary.add(new DictEntry(word.toLowerCase()));
+                        dictionary.add(
+                                new DictEntry(word.toLowerCase().trim()));
                         i++;
                     }
 
@@ -177,7 +178,7 @@ public class DictBuilder {
 
                             if (word != null && definition != null) {
 
-                                word = word.toLowerCase();
+                                word = word.toLowerCase().trim();
 
                                 int index = -1;
 
