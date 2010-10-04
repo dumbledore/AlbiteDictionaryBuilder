@@ -7,7 +7,9 @@ package org.albite.dictionary.builder;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.DataInput;
 import java.io.DataInputStream;
+import java.io.DataOutput;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,6 +23,7 @@ import org.kxml2.io.*;
 import org.xmlpull.v1.XmlPullParserException;
 
 import java.io.File;
+import java.io.UTFDataFormatException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -113,7 +116,7 @@ public class DictBuilder {
 
                 try {
                     parser = new KXmlParser();
-                    parser.setInput(new InputStreamReader(f));
+                    parser.setInput(new InputStreamReader(f, "UTF-8"));
 
                     doc = new Document();
                     doc.parse(parser);
@@ -256,7 +259,7 @@ public class DictBuilder {
                  * Write header
                  */
                  out.writeInt(MAGIC_NUMBER);
-                 out.writeUTF(dictionaryTitle);
+                 writeUTF(dictionaryTitle, out);
                  out.writeShort(dictionaryLanguage);
 
                  /*
@@ -265,17 +268,27 @@ public class DictBuilder {
                   * skip value will be added. We'll need
                   * to seek back to it at the end
                   */
-                 final int headerEnd = (int) out.getFilePointer();
+                 final int headerEnd = ((int) out.getFilePointer()) + 4;
+
                  if (debug) {
                      System.out.println("Header ends at: " + headerEnd);
                  }
 
                  /*
-                  * Write dummy value that will be rewritten later.
-                  * It will show the amount necessary to be skipped so
-                  * that the stream would be ready to read the word index
+                  * Header end = Index start
+                  */
+                 out.writeInt(headerEnd);
+
+                 /*
+                  * Dummy number of entries
                   */
                  out.writeInt(0);
+
+                 /*
+                  * Writing dummy index
+                  */
+                 System.out.println("Writing index...");
+                 int entriesCount = writeIndex(out, dictionary, debug);
 
                  /*
                   * write the definitions data
@@ -290,77 +303,21 @@ public class DictBuilder {
                       */
                      if (e.definition != null) {
                          e.position = (int) out.getFilePointer();
-                         out.writeUTF(e.definition);
+                         writeUTF(e.definition, out);
                      }
                  }
 
-                 /*
-                  * Store the current position in the stream.
-                  * It shows where the word index starts.
-                  */
-                 final int wordIndexPosition = (int) out.getFilePointer();
-                 if (debug) {
-                     System.out.println("Word index at: " + wordIndexPosition);
-                 }
-
-                 /*
-                  * write a dummy number, which will be
-                  * the number of word entries
-                  */
-                 out.writeInt(0);
-
-                 /*
-                  * write the word index
-                  */
-                 System.out.println("Writing word index...");
-
-                 int wordsActuallyWritten = 0;
-
-                 for (int i = 0; i < dictionary.size(); i++) {
-                     DictEntry e = dictionary.get(i);
-
-                     /*
-                      * Skip empty entries
-                      */
-                     if(e.definition != null) {
-                         out.writeUTF(e.word);
-                         out.writeInt(e.position);
-
-                         if (debug) {
-                             System.out.println("Writing word: " + e.word);
-                         }
-
-                         wordsActuallyWritten++;
-                     }
-                 }
-
-                 /*
-                  * Seek to the place, we wrote the skip value
-                  */
                  out.seek(headerEnd);
-
                  /*
-                  * write the amount of bytes to be skipped so that
-                  * the pointer would be exactly at the beginning of
-                  * the word index. This is an absolute value from the start
-                  * of the file.
+                  * REwrite the word index
                   */
-                 final int skip = wordIndexPosition;
-                 out.writeInt(skip);
+                 System.out.println("Re-writing word index...");
+                 out.writeInt(entriesCount);
 
-                 if (debug) {
-                     System.out.println(
-                             "Skip value: " + (skip));
-                 }
-
-                 /*
-                  * Seek to the place, where we'll write the number of words
-                  */
-                 out.seek(wordIndexPosition);
-                 out.writeInt(wordsActuallyWritten);
+                 writeIndex(out, dictionary, debug);
 
                  System.out.println("Dictionary enties written: "
-                         + wordsActuallyWritten);
+                         + entriesCount);
 
                  System.out.println("Dictionary created successfully.");
 
@@ -372,6 +329,130 @@ public class DictBuilder {
             e.printStackTrace();
             throw new DictBuilderException();
         }
+    }
+
+    private static int writeIndex(
+            final RandomAccessFile out,
+            final List<DictEntry> dictionary,
+            final boolean debug) throws IOException {
+         int wordsActuallyWritten = 0;
+
+         for (int i = 0; i < dictionary.size(); i++) {
+             DictEntry e = dictionary.get(i);
+
+             /*
+              * Skip empty entries
+              */
+             if(e.definition != null) {
+                 writeUTF(e.word, out);
+                 out.writeInt(e.position);
+
+                 if (debug) {
+                     System.out.println("Writing word: " + e.word);
+                 }
+
+                 wordsActuallyWritten++;
+             }
+         }
+
+         return wordsActuallyWritten;
+    }
+
+    /*
+     * There was a problem (i.e. writing data wrongly) with the current
+     * writeUTF function so I am using the one from java 1.3
+     */
+    static int writeUTF(String str, DataOutput out) throws IOException {
+	int strlen = str.length();
+	int utflen = 0;
+ 	char[] charr = new char[strlen];
+	int c, count = 0;
+
+	str.getChars(0, strlen, charr, 0);
+
+	for (int i = 0; i < strlen; i++) {
+	    c = charr[i];
+	    if ((c >= 0x0001) && (c <= 0x007F)) {
+		utflen++;
+	    } else if (c > 0x07FF) {
+		utflen += 3;
+	    } else {
+		utflen += 2;
+	    }
+	}
+
+	if (utflen > 65535) {
+	    throw new UTFDataFormatException();
+        }
+
+	byte[] bytearr = new byte[utflen+2];
+	bytearr[count++] = (byte) ((utflen >>> 8) & 0xFF);
+	bytearr[count++] = (byte) ((utflen >>> 0) & 0xFF);
+	for (int i = 0; i < strlen; i++) {
+	    c = charr[i];
+	    if ((c >= 0x0001) && (c <= 0x007F)) {
+		bytearr[count++] = (byte) c;
+	    } else if (c > 0x07FF) {
+		bytearr[count++] = (byte) (0xE0 | ((c >> 12) & 0x0F));
+		bytearr[count++] = (byte) (0x80 | ((c >>  6) & 0x3F));
+		bytearr[count++] = (byte) (0x80 | ((c >>  0) & 0x3F));
+	    } else {
+		bytearr[count++] = (byte) (0xC0 | ((c >>  6) & 0x1F));
+		bytearr[count++] = (byte) (0x80 | ((c >>  0) & 0x3F));
+	    }
+	}
+        out.write(bytearr);
+
+	return utflen + 2;
+    }
+
+    public final static String readUTF(DataInput in) throws IOException {
+        int utflen = in.readUnsignedShort();
+        StringBuffer str = new StringBuffer(utflen);
+        byte bytearr [] = new byte[utflen];
+        int c, char2, char3;
+	int count = 0;
+
+ 	in.readFully(bytearr, 0, utflen);
+
+	while (count < utflen) {
+     	    c = (int) bytearr[count] & 0xff;
+	    switch (c >> 4) {
+	        case 0: case 1: case 2: case 3: case 4: case 5: case 6: case 7:
+		    /* 0xxxxxxx*/
+		    count++;
+                    str.append((char)c);
+		    break;
+	        case 12: case 13:
+		    /* 110x xxxx   10xx xxxx*/
+		    count += 2;
+		    if (count > utflen)
+			throw new UTFDataFormatException();
+		    char2 = (int) bytearr[count-1];
+		    if ((char2 & 0xC0) != 0x80)
+			throw new UTFDataFormatException();
+                    str.append((char)(((c & 0x1F) << 6) | (char2 & 0x3F)));
+		    break;
+	        case 14:
+		    /* 1110 xxxx  10xx xxxx  10xx xxxx */
+		    count += 3;
+		    if (count > utflen)
+			throw new UTFDataFormatException();
+		    char2 = (int) bytearr[count-2];
+		    char3 = (int) bytearr[count-1];
+		    if (((char2 & 0xC0) != 0x80) || ((char3 & 0xC0) != 0x80))
+			throw new UTFDataFormatException();
+                    str.append((char)(((c     & 0x0F) << 12) |
+                    	              ((char2 & 0x3F) << 6)  |
+                    	              ((char3 & 0x3F) << 0)));
+		    break;
+	        default:
+		    /* 10xx xxxx,  1111 xxxx */
+		    throw new UTFDataFormatException();
+		}
+	}
+        // The number of chars produced may be less than utflen
+        return new String(str);
     }
 
     private static String getElementString(Element root, String name) {
@@ -411,7 +492,7 @@ public class DictBuilder {
             throw new DictBuilderException("Magic number is wrong");
         }
 
-        String title = in.readUTF();
+        String title = readUTF(in);
         System.out.println("Title: " + title);
 
         int language = in.readShort();
@@ -423,10 +504,7 @@ public class DictBuilder {
         int skip = in.readInt();
 
         in.reset();
-
-        System.out.println("Skipping " + skip);
-        int skipped = (int) in.skipBytes(skip);
-        System.out.println("Skipped " + skipped);
+        in.skipBytes(skip);
 
         final int wordsCount = in.readInt();
         System.out.println("words count: " + wordsCount);
@@ -435,7 +513,7 @@ public class DictBuilder {
         for (int i = 0; i < wordsCount; i++) {
             System.out.print("Reading entry #" + (i + 1));
 
-            String word = in.readUTF();
+            String word = readUTF(in);
             System.out.print(", " + word);
 
             int position = in.readInt();
@@ -451,11 +529,11 @@ public class DictBuilder {
             String word = (String) it.next();
             int position = entries.get(word).intValue();
             in.reset();
-            in.skip(position);
-            String definition = in.readUTF();
+            in.skipBytes(position);
+            String definition = readUTF(in);
 
-            System.out.println(
-                    "Word: " + word + ", (" + definition.length() + ")");
+            System.out.println("Reading `" + word + "` @ " + position +
+                    " (" + definition.length() + ")");
         }
 
         System.out.println("Dictionary tested successfully.");
