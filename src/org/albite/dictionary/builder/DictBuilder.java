@@ -73,7 +73,7 @@ public class DictBuilder {
 
         List<DictEntry> dictionary = new ArrayList<DictEntry>();
         String dictionaryTitle = "Untitled Dictionary";
-        int dictionaryLanguage = Languages.LANG_UNKNOWN;
+        String dictionaryLanguage = "Unknown";
 
         if (wordsFile != null) {
             //fill words in dictionary from list
@@ -150,15 +150,8 @@ public class DictBuilder {
                     s = eDict.getAttributeValue(KXmlParser.NO_NAMESPACE,
                             "lang");
                     if (s != null) {
-                        dictionaryLanguage =
-                                Languages.getLanguageIndex(s);
+                        dictionaryLanguage = s;
                     }
-                }
-
-                if (dictionaryLanguage == Languages.LANG_UNKNOWN) {
-                    throw new
-                            DictBuilderException(
-                            "Dictionary language is invalid or is not set.");
                 }
 
                 System.out.println("Dictionary title: " + dictionaryTitle);
@@ -260,7 +253,7 @@ public class DictBuilder {
                  */
                  out.writeInt(MAGIC_NUMBER);
                  writeUTF(dictionaryTitle, out);
-                 out.writeShort(dictionaryLanguage);
+                 writeUTF(dictionaryLanguage, out);
 
                  /*
                   * Store the current position in the stream.
