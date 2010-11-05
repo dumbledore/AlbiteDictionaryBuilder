@@ -488,7 +488,7 @@ public class DictBuilder {
         String title = readUTF(in);
         System.out.println("Title: " + title);
 
-        int language = in.readShort();
+        String language = readUTF(in);
         System.out.println("Language: " + language);
 
         /*
