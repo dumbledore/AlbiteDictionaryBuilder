@@ -84,7 +84,7 @@ The Binary Dictionary File (*\*.ald*)
     <tr>
       <td>Dictionary language</td>
       <td>utf-8</td>
-      <td>variues</td>
+      <td>varies</td>
     </tr>
     <tr>
       <td>Position of word index</td>
@@ -128,7 +128,7 @@ The Binary Dictionary File (*\*.ald*)
     </tr>
     <tr>
       <td>Definition position</td>
-      <td>Integer/td>
+      <td>Integer</td>
       <td>4</td>
     </tr>
   </tbody>
