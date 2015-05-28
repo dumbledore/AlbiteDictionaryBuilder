@@ -126,7 +126,8 @@ public class DictBuilder {
                     doc = null;
                     throw new DictBuilderException(
                             "Malformed XML document. You need to have all &"
-                            + "as &amp; for the parser to work.");
+                            + "as &amp; for the parser to work."
+                            + "\nDetail: "+xppe.getLocalizedMessage());
                 }
 
                 System.out.println(
